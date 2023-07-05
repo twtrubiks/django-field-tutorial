@@ -13,4 +13,4 @@ class Profile(models.Model):
     date_of_birth = models.DateField(blank=True, null=True)
 
     def __str__(self):
-        return 'Profile for user {}'.format(self.user.username)
+        return f'Profile for user {self.user.username}'

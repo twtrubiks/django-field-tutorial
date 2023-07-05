@@ -2,4 +2,5 @@ from django.apps import AppConfig
 
 
 class ManytomanyfieldTutorialConfig(AppConfig):
-    name = 'ManyToManyField_tutorial'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "ManyToManyField_tutorial"
