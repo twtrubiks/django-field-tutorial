@@ -176,7 +176,7 @@ from OneToOneField_tutorial.models import Profile
 import datetime
 
 # create profile
-profile=Profile.objects.create(user=user,date_of_birth=datetime.datetime(2017,2,3))
+profile = Profile.objects.create(user=user, date_of_birth=datetime.datetime(2017,2,3))
 ```
 
 ```python
@@ -193,9 +193,28 @@ user.profile
 > <Profile: Profile for user user1>
 ```
 
-為什麼可以反查？
+這邊的反查是使用預設的反查機制.
 
-原因是 Profile model 裡的 user 被我們設定為  primary key。
+也可以自己透過 `related_name` 定義反查機制, 範例如下
+
+```python
+class Profile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_profile",
+    )
+    pass
+```
+
+反查代碼變成如下
+
+```python
+# via user get profile
+user = User.objects.get(username='user1')
+user.user_profile
+> <Profile: Profile for user user1>
+```
 
 P.S 在 model 裡的 on_delete=models.CASCADE ，
 
@@ -211,6 +230,27 @@ Profile.objects.filter(user__username__startswith="user")
 # 排除 username 開頭是 user
 Profile.objects.exclude(user__username__contains="user")
 > <QuerySet []>
+```
+
+如果今天
+
+```python
+>>> user2 = User.objects.create_user(username='user2',email='user@test.com',password='password123')
+>>> user2.profile
+Traceback (most recent call last):
+  File "<console>", line 1, in <module>
+  File "/home/twtrubiks/.pyenv/versions/test_env_39/lib/python3.9/site-packages/django/db/models/fields/related_descriptors.py", line 492, in __get__
+    raise self.RelatedObjectDoesNotExist(
+django.contrib.auth.models.User.profile.RelatedObjectDoesNotExist: User has no profile.
+
+# 請使用以下的 code 修正
+>>> from django.core.exceptions import ObjectDoesNotExist
+>>> try:
+...     user2.profile
+... except ObjectDoesNotExist:
+...     print("no profile")
+...
+no profile
 ```
 
 ## ForeignKey
@@ -281,14 +321,14 @@ class Article(models.Model):
 
 ```python
 
-from ForeignKey_tutorial.models import Reporter,Article
+from ForeignKey_tutorial.models import Reporter, Article
 
 # create reporter
 reporter = Reporter.objects.create(first_name='John', last_name='Smith', email='john@example.com')
 
 import datetime
 
-date=datetime.datetime(2017,2,3)
+date = datetime.datetime(2017,2,3)
 
 # create article
 article = Article.objects.create(headline="This is a test", pub_date=date, reporter=reporter)
@@ -301,9 +341,24 @@ article.reporter
 ```
 
 ```python
-article.reporter.id
+article.reporter.id # 會有多餘的 query
 > 1
 ```
+
+```python
+article.reporter_id # 不會有多餘的 query
+> 1
+```
+
+如果想要增加效能, 可以透過 `select_related`,
+
+```python
+>>> article = Article.objects.select_related('reporter').get(id=1) # 會有一次 query
+>>> article.reporter.id    # 不會 query
+>>> article.reporter.email # 不會 query
+```
+
+延伸閱讀 [透過 django 介紹 N+1 Queries Problem](https://github.com/twtrubiks/django_N_add_1_queries_problem_tutorial)
 
 也可以反查
 
@@ -319,6 +374,15 @@ reporter.articles.all()
 ```
 
 上面兩個結果是一樣的，只是差在是否有設定 `related_name`
+
+反查可以透過 `prefetch_related` 改善效能,
+
+```python
+>>> reporter = Reporter.objects.prefetch_related('articles').get(id=1)
+>>> reporter.articles.first()
+```
+
+延伸閱讀 [透過 django 介紹 N+1 Queries Problem](https://github.com/twtrubiks/django_N_add_1_queries_problem_tutorial)
 
 透過 Reporter object，建立一個 Article object
 
